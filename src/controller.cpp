@@ -1,0 +1,95 @@
+#include <QApplication>
+#include <QMainWindow>
+#include <QLabel>
+#include <QKeyEvent>
+#include <QTimer>
+#include <QImage>
+#include <QPixmap>
+#include <rclcpp/rclcpp.hpp>
+#include <sensor_msgs/msg/image.hpp>
+#include <twistring/msg/twistring.hpp>
+#include <cv_bridge/cv_bridge.h>
+#include <opencv2/opencv.hpp>
+
+class RobotController : public QMainWindow {
+    Q_OBJECT
+
+public:
+    RobotController(rclcpp::Node::SharedPtr node)
+        : QMainWindow(), node_(node), scale_factor_(1.0) {
+        setWindowTitle("Robot Controller");
+        resize(640, 480);
+
+        // Create a label to display the image
+        image_label_ = new QLabel(this);
+        setCentralWidget(image_label_);
+
+        // Timer for publishing commands
+        command_timer_ = new QTimer(this);
+        connect(command_timer_, &QTimer::timeout, this, &RobotController::publishCommand);
+        command_timer_->start(50);  // 20Hz
+
+        // Subscriber for image
+        image_subscriber_ = node_->create_subscription<sensor_msgs::msg::Image>(
+            "/image", 10, std::bind(&RobotController::imageCallback, this, std::placeholders::_1));
+
+        // Initialize key states
+        key_state_['w'] = false;
+        key_state_['s'] = false;
+        key_state_['a'] = false;
+        key_state_['d'] = false;
+    }
+
+protected:
+    void keyPressEvent(QKeyEvent *event) override {
+        key_state_[event->key()] = true;
+    }
+
+    void keyReleaseEvent(QKeyEvent *event) override {
+        key_state_[event->key()] = false;
+    }
+
+    void imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) {
+        // Convert ROS Image message to OpenCV image
+        cv_bridge::CvImagePtr cv_ptr = cv_bridge::toCvCopy(*msg, sensor_msgs::image_encodings::BGR8);
+        current_image_ = cv_ptr->image;
+
+        // Resize the image
+        int new_width = static_cast<int>(current_image_.cols * scale_factor_);
+        int new_height = static_cast<int>(current_image_.rows * scale_factor_);
+        cv::resize(current_image_, current_image_, cv::Size(new_width, new_height));
+
+        // Convert to QImage
+        QImage q_image(current_image_.data, current_image_.cols, current_image_.rows, 
+                       current_image_.step[0], QImage::Format_RGB888);
+        image_label_->setPixmap(QPixmap::fromImage(q_image));
+    }
+
+    void publishCommand() {
+        auto twistring_msg = std::make_shared<twistring::msg::Twistring>();
+        twistring_msg->twist.linear.x = key_state_['w'] ? 1.0 : (key_state_['s'] ? -1.0 : 0.0);
+        twistring_msg->twist.linear.y = key_state_['a'] ? 1.0 : (key_state_['d'] ? -1.0 : 0.0);
+        
+        // TODO: Publish the command to the appropriate topic
+        // e.g. publisher->publish(*twistring_msg);
+    }
+
+private:
+    rclcpp::Node::SharedPtr node_;
+    QLabel *image_label_;
+    QTimer *command_timer_;
+    cv::Mat current_image_;
+    std::map<int, bool> key_state_;
+    double scale_factor_;
+};
+
+int main(int argc, char *argv[]) {
+    rclcpp::init(argc, argv);
+    rclcpp::Node::SharedPtr node = std::make_shared<rclcpp::Node>("robot_controller");
+
+    QApplication app(argc, argv);
+    RobotController window(node);
+    window.show();
+
+    return app.exec();
+}
