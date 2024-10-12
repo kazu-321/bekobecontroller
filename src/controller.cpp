@@ -46,6 +46,8 @@ public:
         key_state_['A'] = false;
         key_state_['S'] = false;
         key_state_['D'] = false;
+        key_state_[16777236] = false;  // Right arrow key
+        key_state_[16777234] = false;  // Left arrow key
 
         old_mouse_x_ = -1;
         last_mouse_y_ = 0;
@@ -64,7 +66,13 @@ public:
 protected:
     void keyPressEvent(QKeyEvent *event) override {
         key_state_[event->key()] = true;
-        RCLCPP_INFO(node_->get_logger(), "Key pressed: %d", event->key());
+        if(event->key() == 'C'){
+            cmd="continue";
+        }else if(event->key() == 'P'){
+            cmd="pause";
+        }else if(event->key() == Qt::Key_Escape){
+            QApplication::quit();
+        }
     }
 
     void keyReleaseEvent(QKeyEvent *event) override {
@@ -139,7 +147,7 @@ protected:
         auto twistring_msg = std::make_shared<twistring::msg::Twistring>();
         twistring_msg->twist.linear.x = key_state_['W'] ? 1.0 : (key_state_['S'] ? -1.0 : 0.0);
         twistring_msg->twist.linear.y = key_state_['A'] ? 1.0 : (key_state_['D'] ? -1.0 : 0.0);
-        twistring_msg->twist.angular.z = 0.0;
+        twistring_msg->twist.angular.z = key_state_[16777236] ? 1.0 : (key_state_[16777234] ? -1.0 : 0.0);
         twistring_msg->twist.angular.x = (old_mouse_x_ - last_mouse_x_)/100.0;
         twistring_msg->twist.angular.y = last_mouse_y_;
         twistring_msg->cmd = cmd;

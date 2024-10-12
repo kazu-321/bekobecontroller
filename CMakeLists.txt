@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
-project(becontroller)
+project(bekobecontroller)
 
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
@@ -18,10 +18,10 @@ set(CMAKE_AUTORCC ON)
 include_directories(include ${OpenCV_INCLUDE_DIRS})
 
 # Add the executable
-add_executable(becontroller src/controller.cpp)
+add_executable(bekobecontroller src/controller.cpp)
 
 # Specify the dependencies for the executable
-ament_target_dependencies(becontroller
+ament_target_dependencies(bekobecontroller
   rclcpp
   sensor_msgs
   twistring
@@ -29,14 +29,14 @@ ament_target_dependencies(becontroller
 )
 
 # Link libraries
-target_link_libraries(becontroller
+target_link_libraries(bekobecontroller
   ${OpenCV_LIBRARIES}
   Qt5::Widgets
 )
 
 # Install the target
 install(TARGETS
-  becontroller
+  bekobecontroller
   DESTINATION lib/${PROJECT_NAME}
 )
 
