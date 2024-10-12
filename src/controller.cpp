@@ -74,18 +74,27 @@ protected:
             cv_bridge::CvImagePtr cv_ptr = cv_bridge::toCvCopy(*msg, sensor_msgs::image_encodings::BGR8);
             current_image_ = cv_ptr->image;
 
-            // Debugging: Check image size and type
-            // RCLCPP_INFO(node_->get_logger(), "Received image: %dx%d, type: %d", current_image_.cols, current_image_.rows, current_image_.type());
-
             // Check if the image is empty
             if (current_image_.empty()) {
                 RCLCPP_WARN(node_->get_logger(), "Received empty image!");
                 return;
             }
 
+            // Store original image dimensions
+            int original_width = current_image_.cols;
+            int original_height = current_image_.rows;
+
             // Get the current window size
             int new_width = this->size().width();
             int new_height = this->size().height();
+
+            // Calculate the new dimensions while maintaining the aspect ratio
+            double aspect_ratio = static_cast<double>(original_width) / static_cast<double>(original_height);
+            if (new_width / aspect_ratio <= new_height) {
+                new_height = static_cast<int>(new_width / aspect_ratio);
+            } else {
+                new_width = static_cast<int>(new_height * aspect_ratio);
+            }
 
             // Resize the image
             cv::resize(current_image_, current_image_, cv::Size(new_width, new_height));
@@ -93,7 +102,7 @@ protected:
             // Convert to QImage
             QImage q_image(current_image_.data, current_image_.cols, current_image_.rows,
                         current_image_.step[0], QImage::Format_BGR888);
-            
+
             // Update the label with the new image
             image_label_->setPixmap(QPixmap::fromImage(q_image));
             image_label_->update();  // Request update instead of repaint
