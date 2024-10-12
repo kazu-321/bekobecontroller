@@ -106,7 +106,7 @@ protected:
 
     void mouseMoveEvent(QMouseEvent *event) override {
         // Update mouse position
-        RCLCPP_INFO(node_->get_logger(), "Mouse position: %d, %d", event->x(), event->y());
+        // RCLCPP_INFO(node_->get_logger(), "Mouse position: %d, %d", event->x(), event->y());
         if(old_mouse_x_==-1){
             old_mouse_x_=event->x();
         }
@@ -114,17 +114,27 @@ protected:
         last_mouse_y_ = event->y();
     }
 
+   void mouseReleaseEvent(QMouseEvent *event) override {
+        if(event->button() == Qt::LeftButton) {
+            cmd = "click";
+        }
+    }
+
     void publishCommand() {
         auto twistring_msg = std::make_shared<twistring::msg::Twistring>();
         twistring_msg->twist.linear.x = key_state_['W'] ? 1.0 : (key_state_['S'] ? -1.0 : 0.0);
         twistring_msg->twist.linear.y = key_state_['A'] ? 1.0 : (key_state_['D'] ? -1.0 : 0.0);
-        twistring_msg->twist.angular.z=0.0;
-        twistring_msg->twist.angular.x=old_mouse_x_-last_mouse_x_;
-        twistring_msg->twist.angular.y=last_mouse_y_;
-        old_mouse_x_=last_mouse_x_;
+        twistring_msg->twist.angular.z = 0.0;
+        twistring_msg->twist.angular.x = old_mouse_x_ - last_mouse_x_;
+        twistring_msg->twist.angular.y = last_mouse_y_;
+        twistring_msg->cmd = cmd;
+        cmd = "";
+        old_mouse_x_ = last_mouse_x_;
+
         // Publish the command
         command_publisher_->publish(*twistring_msg);
     }
+
 
 private:
     rclcpp::Node::SharedPtr node_;
@@ -133,6 +143,7 @@ private:
     cv::Mat current_image_;
     std::map<int, bool> key_state_;
     double scale_factor_;
+    std::string cmd;
     int last_mouse_x_, last_mouse_y_,old_mouse_x_; 
     rclcpp::Publisher<twistring::msg::Twistring>::SharedPtr command_publisher_;
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_subscriber_;
