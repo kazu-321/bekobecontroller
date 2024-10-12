@@ -7,6 +7,7 @@ find_package(sensor_msgs REQUIRED)
 find_package(twistring REQUIRED)
 find_package(Qt5 COMPONENTS Widgets REQUIRED)
 find_package(OpenCV REQUIRED)
+find_package(cv_bridge REQUIRED)
 
 # Enable automatic MOC, UIC, and RCC processing
 set(CMAKE_AUTOMOC ON)
@@ -24,11 +25,14 @@ ament_target_dependencies(becontroller
   rclcpp
   sensor_msgs
   twistring
-  Qt5::Widgets
+  cv_bridge
 )
 
 # Link libraries
-target_link_libraries(becontroller ${OpenCV_LIBRARIES})
+target_link_libraries(becontroller
+  ${OpenCV_LIBRARIES}
+  Qt5::Widgets
+)
 
 # Install the target
 install(TARGETS
