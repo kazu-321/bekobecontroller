@@ -39,7 +39,7 @@ public:
             "/image", 10, std::bind(&RobotController::imageCallback, this, std::placeholders::_1));
 
         // Publisher for commands
-        command_publisher_ = node_->create_publisher<twistring::msg::Twistring>("/cmd_vel", 10);
+        command_publisher_ = node_->create_publisher<twistring::msg::Twistring>("cmd_vel", 10);
 
         // Initialize key states
         key_state_['W'] = false;
@@ -109,6 +109,19 @@ protected:
             int original_height = current_image_.rows;
 
             // Get the current window size
+
+            // Draw a crosshair at the center of the image
+            int center_x = current_image_.cols / 2;
+            int center_y = current_image_.rows / 2;
+            int crosshair_size = 20; // Size of the crosshair
+
+            // Draw horizontal line
+            cv::line(current_image_, cv::Point(center_x - crosshair_size, center_y), 
+                     cv::Point(center_x + crosshair_size, center_y), cv::Scalar(0, 0, 255), 2);
+
+            // Draw vertical line
+            cv::line(current_image_, cv::Point(center_x, center_y - crosshair_size), 
+                     cv::Point(center_x, center_y + crosshair_size), cv::Scalar(0, 0, 255), 2);
             int new_width = this->size().width();
             int new_height = this->size().height();
 
@@ -145,9 +158,16 @@ protected:
 
     void publishCommand() {
         auto twistring_msg = std::make_shared<twistring::msg::Twistring>();
-        twistring_msg->twist.linear.x = key_state_['W'] ? 1.0 : (key_state_['S'] ? -1.0 : 0.0);
-        twistring_msg->twist.linear.y = key_state_['A'] ? 1.0 : (key_state_['D'] ? -1.0 : 0.0);
-        twistring_msg->twist.angular.z = key_state_[16777236] ? 1.0 : (key_state_[16777234] ? -1.0 : 0.0);
+        twistring_msg->twist.linear.x = 0.0;
+        twistring_msg->twist.linear.y = 0.0;
+        twistring_msg->twist.angular.z = 0.0;
+        if(key_state_['W']) twistring_msg->twist.linear.x += 1.0;
+        if(key_state_['S']) twistring_msg->twist.linear.x -= 1.0;
+        if(key_state_['A']) twistring_msg->twist.linear.y += 1.0;
+        if(key_state_['D']) twistring_msg->twist.linear.y -= 1.0;
+        if(key_state_[16777236]) twistring_msg->twist.angular.z -= 1.0;
+        if(key_state_[16777234]) twistring_msg->twist.angular.z += 1.0;
+
         twistring_msg->twist.angular.x = (old_mouse_x_ - last_mouse_x_)/100.0;
         twistring_msg->twist.angular.y = last_mouse_y_;
         twistring_msg->cmd = cmd;
