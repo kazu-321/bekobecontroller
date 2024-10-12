@@ -5,6 +5,7 @@
 #include <QTimer>
 #include <QImage>
 #include <QPixmap>
+#include <QCoreApplication>
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/image.hpp>
 #include <twistring/msg/twistring.hpp>
@@ -25,7 +26,8 @@ public:
         image_label_ = new QLabel(this);
         setCentralWidget(image_label_);
 
-        setMouseTracking(true);
+        // Install the event filter
+        QCoreApplication::instance()->installEventFilter(this);
 
         // Timer for publishing commands
         command_timer_ = new QTimer(this);
@@ -45,7 +47,8 @@ public:
         key_state_['S'] = false;
         key_state_['D'] = false;
 
-        old_mouse_x_=-1;
+        old_mouse_x_ = -1;
+        last_mouse_y_ = 0;
 
         std::signal(SIGINT, &RobotController::signalHandler);
     }
@@ -54,7 +57,6 @@ public:
     }
 
     static void signalHandler(int signum) {
-        // Perform cleanup here if necessary
         RCLCPP_INFO(rclcpp::get_logger("robot_controller"), "Interrupt signal received, shutting down.");
         QApplication::quit(); // Quit the QApplication
     }
@@ -62,10 +64,24 @@ public:
 protected:
     void keyPressEvent(QKeyEvent *event) override {
         key_state_[event->key()] = true;
+        RCLCPP_INFO(node_->get_logger(), "Key pressed: %d", event->key());
     }
 
     void keyReleaseEvent(QKeyEvent *event) override {
         key_state_[event->key()] = false;
+    }
+
+    bool eventFilter(QObject *obj, QEvent *event) override {
+        if (event->type() == QEvent::MouseMove) {
+            QMouseEvent *mouse_event = static_cast<QMouseEvent *>(event);
+            if(old_mouse_x_ == -1) {
+                old_mouse_x_ = mouse_event->x();
+            }
+            last_mouse_x_ = mouse_event->x();
+            last_mouse_y_ = mouse_event->y();
+            return true; // Event handled
+        }
+        return QMainWindow::eventFilter(obj, event); // Pass other events to the base class
     }
 
     void imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) {
@@ -113,17 +129,7 @@ protected:
         }
     }
 
-    void mouseMoveEvent(QMouseEvent *event) override {
-        // Update mouse position
-        // RCLCPP_INFO(node_->get_logger(), "Mouse position: %d, %d", event->x(), event->y());
-        if(old_mouse_x_==-1){
-            old_mouse_x_=event->x();
-        }
-        last_mouse_x_ = event->x();
-        last_mouse_y_ = event->y();
-    }
-
-   void mouseReleaseEvent(QMouseEvent *event) override {
+    void mouseReleaseEvent(QMouseEvent *event) override {
         if(event->button() == Qt::LeftButton) {
             cmd = "click";
         }
@@ -134,7 +140,7 @@ protected:
         twistring_msg->twist.linear.x = key_state_['W'] ? 1.0 : (key_state_['S'] ? -1.0 : 0.0);
         twistring_msg->twist.linear.y = key_state_['A'] ? 1.0 : (key_state_['D'] ? -1.0 : 0.0);
         twistring_msg->twist.angular.z = 0.0;
-        twistring_msg->twist.angular.x = old_mouse_x_ - last_mouse_x_;
+        twistring_msg->twist.angular.x = (old_mouse_x_ - last_mouse_x_)/100.0;
         twistring_msg->twist.angular.y = last_mouse_y_;
         twistring_msg->cmd = cmd;
         cmd = "";
@@ -144,7 +150,6 @@ protected:
         command_publisher_->publish(*twistring_msg);
     }
 
-
 private:
     rclcpp::Node::SharedPtr node_;
     QLabel *image_label_;
@@ -153,7 +158,7 @@ private:
     std::map<int, bool> key_state_;
     double scale_factor_;
     std::string cmd;
-    int last_mouse_x_, last_mouse_y_,old_mouse_x_; 
+    int last_mouse_x_, last_mouse_y_, old_mouse_x_; 
     rclcpp::Publisher<twistring::msg::Twistring>::SharedPtr command_publisher_;
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_subscriber_;
 };
@@ -164,7 +169,7 @@ int main(int argc, char *argv[]) {
 
     QApplication app(argc, argv);
     RobotController window(node);
-    window.show();
+    window.showMaximized();
 
     // ノードをスピンするスレッドを追加
     std::thread rclcpp_thread([&node]() { rclcpp::spin(node); });
