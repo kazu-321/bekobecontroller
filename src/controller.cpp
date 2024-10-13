@@ -85,8 +85,23 @@ protected:
             if(old_mouse_x_ == -1) {
                 old_mouse_x_ = mouse_event->x();
             }
+            
             last_mouse_x_ = mouse_event->x();
             last_mouse_y_ = mouse_event->y();
+            int window_width = this->width();
+            if (last_mouse_x_ <= 10) {
+                // RCLCPP_INFO(node_->get_logger(), "Wrap around to the right edge");
+                // Wrap around to the right edge
+                QCursor::setPos(mapToGlobal(QPoint(window_width - 20, last_mouse_y_)));
+                last_mouse_x_ = window_width - 20;
+                old_mouse_x_ = last_mouse_x_;
+            } else if (last_mouse_x_ >= window_width - 10) {
+                // RCLCPP_INFO(node_->get_logger(), "Wrap around to the left edge");
+                // Wrap around to the left edge
+                QCursor::setPos(mapToGlobal(QPoint(20, last_mouse_y_)));
+                last_mouse_x_ = 20;
+                old_mouse_x_ = last_mouse_x_;
+            }
             return true; // Event handled
         }
         return QMainWindow::eventFilter(obj, event); // Pass other events to the base class
