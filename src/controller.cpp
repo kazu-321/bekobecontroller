@@ -70,6 +70,8 @@ protected:
             cmd="continue";
         }else if(event->key() == 'P'){
             cmd="pause";
+        }else if(event->key() == 'R'){
+            cmd="reset";
         }else if(event->key() == Qt::Key_Escape){
             QApplication::quit();
         }
