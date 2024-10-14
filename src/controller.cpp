@@ -43,6 +43,7 @@ public:
 
 private:
     void set_value(){
+        printf("set value\n");
         QList<QLineEdit*> lineEdits;
         lineEdits = controls["PID 0"];
         for (int i=0;i<3;i++) lineEdits[i]->setText(QString::number(robot_status.gain0[i]));
@@ -52,9 +53,10 @@ private:
         for (int i=0;i<3;i++) lineEdits[i]->setText(QString::number(robot_status.gain2[i]));
         lineEdits = controls["PID 3"];
         for (int i=0;i<3;i++) lineEdits[i]->setText(QString::number(robot_status.gain3[i]));
+        printf("init\n");
         for (int i=0;i<4;i++){ 
             lineEdits = controls["init "+QString::number(i)];
-            lineEdits[i]->setText(QString::number(robot_status.rotation_init[i]));
+            lineEdits[0]->setText(QString::number(robot_status.rotation_init[i]));
         }
     }
     void add_control(const QString &name, const int num = 1) {
