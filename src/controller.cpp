@@ -20,6 +20,7 @@
 
 std::string cmd;
 krb2024_msgs::msg::RobotStatus robot_status;
+bool paused_;
 
 class ControlPanel : public QMainWindow {
 public:
@@ -38,7 +39,7 @@ public:
         connect(button_load, &QPushButton::clicked, this,&ControlPanel::set_value);
         layout->addWidget(button_load);
         QPushButton *button_close = new QPushButton("close", this);
-        connect(button_close, &QPushButton::clicked, [this](){this->close();});
+        connect(button_close, &QPushButton::clicked, [this](){this->close();paused_=false;});
         layout->addWidget(button_close);
 
         centralWidget->setLayout(layout);
@@ -48,6 +49,7 @@ protected:
     void keyPressEvent(QKeyEvent *event) override {
         if(event->key() == Qt::Key_Escape){
             this->close();
+            paused_ = false;
         }
     }
 
@@ -128,7 +130,7 @@ class RobotController : public QMainWindow {
 
 public:
     RobotController(rclcpp::Node::SharedPtr node)
-        : QMainWindow(), node_(node), scale_factor_(1.0) {
+        : QMainWindow(), node_(node) {
         setWindowTitle("ロボットコントローラー");
         resize(640, 480);
 
@@ -207,6 +209,7 @@ protected:
             control_panel_->setWindowTitle("Control Panel");
             control_panel_->resize(400, 300);
             control_panel_->show();
+            paused_ = true;
         }
     }
 
@@ -215,7 +218,7 @@ protected:
     }
 
     bool eventFilter(QObject *obj, QEvent *event) override {
-        if (event->type() == QEvent::MouseMove && obj == image_label_) {
+        if (event->type() == QEvent::MouseMove && obj == image_label_ && !paused_) {
             QMouseEvent *mouse_event = static_cast<QMouseEvent *>(event);
             if(old_mouse_x_ == -1) {
                 old_mouse_x_ = mouse_event->x();
@@ -242,7 +245,7 @@ protected:
 
     void resizeEvent(QResizeEvent* event) override{
         if (!pixmap_.isNull()) {
-            image_label_->setPixmap(pixmap_.scaled(width()-20,height()-20, Qt::KeepAspectRatio));
+            image_label_->setPixmap(pixmap_.scaled(width(),height(), Qt::KeepAspectRatio));
         }
         QMainWindow::resizeEvent(event);
     }
@@ -282,7 +285,7 @@ protected:
                         static_cast<int>(current_image_.step[0]), QImage::Format_BGR888);
             // 新しい画像でラベルを更新
             pixmap_=QPixmap::fromImage(q_image);
-            image_label_->setPixmap(pixmap_.scaled(width()-20,height()-20, Qt::KeepAspectRatio));
+            image_label_->setPixmap(pixmap_.scaled(width(),height(), Qt::KeepAspectRatio));
             // image_label_->setPixmap(pixmap_);
             image_label_->update();  // 再描画を要求
         } catch (const cv_bridge::Exception &e) {
@@ -327,9 +330,7 @@ private:
     QPixmap pixmap_;
     cv::Mat current_image_;
     std::map<int, bool> key_state_;
-    double scale_factor_;
     int last_mouse_x_, last_mouse_y_, old_mouse_x_; 
-    bool paused_;
     rclcpp::Publisher<twistring::msg::Twistring>::SharedPtr command_publisher_;
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_subscriber_;
     rclcpp::Subscription<krb2024_msgs::msg::RobotStatus>::SharedPtr status_subscriber_;
