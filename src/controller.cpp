@@ -38,8 +38,16 @@ private:
             rowLayout->addWidget(lineEdit);
         }
         QPushButton *button = new QPushButton("設定", this);
+        connect(button, &QPushButton::clicked, this, &ControlPanel::onSettingButtonClicked);
         rowLayout->addWidget(button);
         layout->addLayout(rowLayout);
+    }
+    void onSettingButtonClicked() {
+        QList<QLineEdit *> lineEdits = findChildren<QLineEdit *>();
+        for (QLineEdit *lineEdit : lineEdits) {
+            QString text = lineEdit->text();
+            printf("%s\n", text.toStdString().c_str());
+        }
     }
     QVBoxLayout *layout;
 };
