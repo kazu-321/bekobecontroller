@@ -43,17 +43,17 @@ public:
 
 private:
     void set_value(){
-        QList<QLineEdit*> lineEdits = controls["PID 0"];
+        QList<QLineEdit*> lineEdits
+        lineEdits = controls["PID 0"];
         for (int i=0;i<3;i++) lineEdits[i]->setText(QString::number(robot_status.gain0[i]));
-        QList<QLineEdit*> lineEdits = controls["PID 1"];
+        lineEdits = controls["PID 1"];
         for (int i=0;i<3;i++) lineEdits[i]->setText(QString::number(robot_status.gain1[i]));
-        QList<QLineEdit*> lineEdits = controls["PID 2"];
+        lineEdits = controls["PID 2"];
         for (int i=0;i<3;i++) lineEdits[i]->setText(QString::number(robot_status.gain2[i]));
-        QList<QLineEdit*> lineEdits = controls["PID 3"];
+        lineEdits = controls["PID 3"];
         for (int i=0;i<3;i++) lineEdits[i]->setText(QString::number(robot_status.gain3[i]));
-        
         for (int i=0;i<4;i++){ 
-            QList<QLineEdit*> lineEdits = controls["init "+QString::number(i)];
+            ineEdits = controls["init "+QString::number(i)];
             lineEdits[i]->setText(QString::number(robot_status.rotation_init[i]));
         }
     }
