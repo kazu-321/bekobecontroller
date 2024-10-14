@@ -18,6 +18,7 @@
 #include <map>
 
 std::string cmd;
+
 class ControlPanel : public QMainWindow {
 public:
     ControlPanel(QWidget *parent = nullptr) : QMainWindow(parent) {
@@ -27,6 +28,10 @@ public:
         add_control("PID 1", 3);
         add_control("PID 2", 3);
         add_control("PID 3", 3);
+        add_control("init 0", 1);
+        add_control("init 1", 1);
+        add_control("init 2", 1);
+        add_control("init 3", 1);
         centralWidget->setLayout(layout);
         setCentralWidget(centralWidget);
     }
@@ -50,9 +55,12 @@ private:
         // QLabelの名前とQLineEditのリストを保存
         controls[name] = lineEdits;
 
+        // ボタンを作成し、ボタンに対応するラベルの名前を設定
         QPushButton *button = new QPushButton("設定", this);
+        button->setProperty("labelName", name); // ボタンにラベルの名前を保存
         connect(button, &QPushButton::clicked, this, &ControlPanel::onSettingButtonClicked);
         rowLayout->addWidget(button);
+
         layout->addLayout(rowLayout);
     }
 
@@ -60,13 +68,10 @@ private:
         QPushButton *button = qobject_cast<QPushButton *>(sender());
         if (!button) return; // 安全確認
 
-        // ボタンの親ウィジェットからラベルを取得
-        QWidget *parentWidget = button->parentWidget();
-        QLabel *label = parentWidget->findChild<QLabel*>();
-        if (!label) return;
-
+        // ボタンに保存したラベル名を取得
+        QString labelText = button->property("labelName").toString();
+        
         // QLabelに対応するQLineEditのリストを取得
-        QString labelText = label->text();
         QList<QLineEdit*> lineEdits = controls[labelText];
 
         // コマンドを作成
@@ -84,6 +89,7 @@ private:
     // QLabelの名前と対応するQLineEditのリストを管理
     QMap<QString, QList<QLineEdit*>> controls;
 };
+
 
 
 
@@ -168,7 +174,7 @@ protected:
     }
 
     bool eventFilter(QObject *obj, QEvent *event) override {
-        if (event->type() == QEvent::MouseMove) {
+        if (event->type() == QEvent::MouseMove ) {
             QMouseEvent *mouse_event = static_cast<QMouseEvent *>(event);
             if(old_mouse_x_ == -1) {
                 old_mouse_x_ = mouse_event->x();
