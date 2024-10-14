@@ -32,12 +32,12 @@ private:
     void add_control(const QString &name,const int num=1) {
         QHBoxLayout *rowLayout = new QHBoxLayout();
         QLabel *label = new QLabel(name, this);
+        rowLayout->addWidget(label);
         for(int i=0;i<num;i++){
             QLineEdit *lineEdit = new QLineEdit(this);
             rowLayout->addWidget(lineEdit);
         }
         QPushButton *button = new QPushButton("設定", this);
-        rowLayout->addWidget(label);
         rowLayout->addWidget(button);
         layout->addLayout(rowLayout);
     }
