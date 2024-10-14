@@ -53,7 +53,7 @@ private:
         lineEdits = controls["PID 3"];
         for (int i=0;i<3;i++) lineEdits[i]->setText(QString::number(robot_status.gain3[i]));
         for (int i=0;i<4;i++){ 
-            ineEdits = controls["init "+QString::number(i)];
+            lineEdits = controls["init "+QString::number(i)];
             lineEdits[i]->setText(QString::number(robot_status.rotation_init[i]));
         }
     }
