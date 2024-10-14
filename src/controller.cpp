@@ -17,6 +17,7 @@
 #include <opencv2/opencv.hpp>
 #include <map>
 
+std::string cmd;
 class ControlPanel : public QMainWindow {
 public:
     ControlPanel(QWidget *parent = nullptr) : QMainWindow(parent) {
@@ -25,6 +26,7 @@ public:
         add_control("PID 0", 3);
         add_control("PID 1", 3);
         add_control("PID 2", 3);
+        add_control("PID 3", 3);
         centralWidget->setLayout(layout);
         setCentralWidget(centralWidget);
     }
@@ -34,10 +36,20 @@ private:
         QHBoxLayout *rowLayout = new QHBoxLayout();
         QLabel *label = new QLabel(name, this);
         rowLayout->addWidget(label);
+
+        // QLineEditを保存するリスト
+        QList<QLineEdit*> lineEdits;
+
+        // 複数のQLineEditを作成し、リストに追加
         for (int i = 0; i < num; i++) {
             QLineEdit *lineEdit = new QLineEdit(this);
             rowLayout->addWidget(lineEdit);
+            lineEdits.append(lineEdit);
         }
+
+        // QLabelの名前とQLineEditのリストを保存
+        controls[name] = lineEdits;
+
         QPushButton *button = new QPushButton("設定", this);
         connect(button, &QPushButton::clicked, this, &ControlPanel::onSettingButtonClicked);
         rowLayout->addWidget(button);
@@ -46,33 +58,34 @@ private:
 
     void onSettingButtonClicked() {
         QPushButton *button = qobject_cast<QPushButton *>(sender());
-        if (button) {
-            QWidget *parent = button->parentWidget();
-            if (parent) {
-                QVBoxLayout *parentLayout = qobject_cast<QVBoxLayout *>(parent->parentWidget()->layout());
-                if (parentLayout) {
-                    for (int i = 0; i < parentLayout->count(); i++) {
-                        QHBoxLayout *rowLayout = qobject_cast<QHBoxLayout *>(parentLayout->itemAt(i)->layout());
-                        if (rowLayout && rowLayout->indexOf(button) != -1) {
-                            for (int j = 0; j < rowLayout->count(); j++) {
-                                QWidget *widget = rowLayout->itemAt(j)->widget();
-                                if (widget) {
-                                    QLineEdit *lineEdit = qobject_cast<QLineEdit *>(widget);
-                                    if (lineEdit) {
-                                        RCLCPP_INFO(rclcpp::get_logger("robot_controller"), "Value: %s", lineEdit->text().toStdString().c_str());
-                                    }
-                                }
-                            }
-                            break;
-                        }
-                    }
-                } else printf("parentLayout is null\n");
-            }
+        if (!button) return; // 安全確認
+
+        // ボタンの親ウィジェットからラベルを取得
+        QWidget *parentWidget = button->parentWidget();
+        QLabel *label = parentWidget->findChild<QLabel*>();
+        if (!label) return;
+
+        // QLabelに対応するQLineEditのリストを取得
+        QString labelText = label->text();
+        QList<QLineEdit*> lineEdits = controls[labelText];
+
+        // コマンドを作成
+        std::string command = "set " + labelText.toStdString();
+        for (QLineEdit *lineEdit : lineEdits) {
+            command += " " + lineEdit->text().toStdString();
         }
+
+        printf("command: %s\n", command.c_str());
+        cmd = command;
     }
 
     QVBoxLayout *layout;
+
+    // QLabelの名前と対応するQLineEditのリストを管理
+    QMap<QString, QList<QLineEdit*>> controls;
 };
+
+
 
 class RobotController : public QMainWindow {
     Q_OBJECT
@@ -210,19 +223,19 @@ protected:
             // 垂直線を描画
             cv::line(current_image_, cv::Point(center_x, center_y - crosshair_size), 
                      cv::Point(center_x, center_y + crosshair_size), cv::Scalar(0, 0, 255), 2);
-            int new_width = this->size().width();
-            int new_height = this->size().height();
+            // int new_width = this->size().width();
+            // int new_height = this->size().height();
 
             // アスペクト比を維持しながら新しい寸法を計算
-            double aspect_ratio = static_cast<double>(original_width) / static_cast<double>(original_height);
-            if (new_width / aspect_ratio <= new_height) {
-                new_height = static_cast<int>(new_width / aspect_ratio);
-            } else {
-                new_width = static_cast<int>(new_height * aspect_ratio);
-            }
+            // double aspect_ratio = static_cast<double>(original_width) / static_cast<double>(original_height);
+            // if (new_width / aspect_ratio <= new_height) {
+            //     new_height = static_cast<int>(new_width / aspect_ratio);
+            // } else {
+            //     new_width = static_cast<int>(new_height * aspect_ratio);
+            // }
 
-            // 画像をリサイズ
-            cv::resize(current_image_, current_image_, cv::Size(new_width, new_height));
+            // // 画像をリサイズ
+            // cv::resize(current_image_, current_image_, cv::Size(new_width, new_height));
 
             // QImageに変換
             QImage q_image(current_image_.data, current_image_.cols, current_image_.rows,
@@ -230,6 +243,7 @@ protected:
 
             // 新しい画像でラベルを更新
             image_label_->setPixmap(QPixmap::fromImage(q_image));
+            image_label_->setScaledContents(true);
             image_label_->update();  // 再描画を要求
         } catch (const cv_bridge::Exception &e) {
             RCLCPP_ERROR(node_->get_logger(), "cv_bridge exception: %s", e.what());
@@ -273,7 +287,6 @@ private:
     cv::Mat current_image_;
     std::map<int, bool> key_state_;
     double scale_factor_;
-    std::string cmd;
     int last_mouse_x_, last_mouse_y_, old_mouse_x_; 
     rclcpp::Publisher<twistring::msg::Twistring>::SharedPtr command_publisher_;
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_subscriber_;
