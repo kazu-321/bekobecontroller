@@ -8,7 +8,6 @@
 #include <QCoreApplication>
 #include <QWidget>
 #include <QVBoxLayout>
-#include <QHBoxLayout>
 #include <QLineEdit>
 #include <QPushButton>
 #include <rclcpp/rclcpp.hpp>
@@ -18,22 +17,31 @@
 #include <opencv2/opencv.hpp>
 #include <map>
 
-class ControlPanel : public QWidget {
+class ControlPanel : public QMainWindow {
 public:
-    ControlPanel(QWidget *parent = nullptr) : QWidget(parent) {
-        QVBoxLayout *layout = new QVBoxLayout(this);
-        for (int i = 0; i < 10; ++i) {
-            QHBoxLayout *rowLayout = new QHBoxLayout();
-            QLabel *label = new QLabel(QString("ラベル %1").arg(i + 1), this);
-            QLineEdit *lineEdit = new QLineEdit(this);
-            QPushButton *button = new QPushButton(QString("ボタン %1").arg(i + 1), this);
-            rowLayout->addWidget(label);
-            rowLayout->addWidget(lineEdit);
-            rowLayout->addWidget(button);
-            layout->addLayout(rowLayout);
-        }
-        setLayout(layout);
+    ControlPanel(QWidget *parent = nullptr) : QMainWindow(parent) {
+        QWidget *centralWidget = new QWidget(this);
+        layout = new QVBoxLayout(centralWidget);
+        add_control("PID 0",3);
+        add_control("PID 1",3);
+        add_control("PID 2",3);
+        centralWidget->setLayout(layout);
+        setCentralWidget(centralWidget);
     }
+private:
+    void add_control(const QString &name,const int num=1) {
+        QHBoxLayout *rowLayout = new QHBoxLayout();
+        QLabel *label = new QLabel(name, this);
+        for(int i=0;i<num;i++){
+            QLineEdit *lineEdit = new QLineEdit(this);
+            rowLayout->addWidget(lineEdit);
+        }
+        QPushButton *button = new QPushButton("設定", this);
+        rowLayout->addWidget(label);
+        rowLayout->addWidget(button);
+        layout->addLayout(rowLayout);
+    }
+    QVBoxLayout *layout;
 };
 
 class RobotController : public QMainWindow {
@@ -47,15 +55,16 @@ public:
 
         // メインウィジェットを作成
         QWidget *mainWidget = new QWidget(this);
-        QHBoxLayout *mainLayout = new QHBoxLayout(mainWidget);
+        QVBoxLayout *mainLayout = new QVBoxLayout(mainWidget);
 
         // 画像を表示するラベルを作成
         image_label_ = new QLabel(this);
         mainLayout->addWidget(image_label_);
-
-        // コントロールパネルを作成して追加
-        control_panel_ = new ControlPanel(this);
-        mainLayout->addWidget(control_panel_);
+        // コントロールパネルを別ウィンドウとして表示
+        control_panel_ = new ControlPanel();
+        control_panel_->setWindowTitle("Control Panel");
+        control_panel_->resize(400, 300);
+        control_panel_->show();
 
         // メインウィジェットを設定
         setCentralWidget(mainWidget);
@@ -74,6 +83,19 @@ public:
 
         // コマンドのパブリッシャー
         command_publisher_ = node_->create_publisher<twistring::msg::Twistring>("cmd_vel", 10);
+
+        // キー状態の初期化
+        key_state_['W'] = false;
+        key_state_['A'] = false;
+        key_state_['S'] = false;
+        key_state_['D'] = false;
+        key_state_[16777236] = false;  // 右矢印キー
+        key_state_[16777234] = false;  // 左矢印キー
+
+        old_mouse_x_ = -1;
+        last_mouse_y_ = 0;
+
+        std::signal(SIGINT, &RobotController::signalHandler);
     }
     ~RobotController() {
         // 必要に応じてクリーンアップ
