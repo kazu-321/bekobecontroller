@@ -177,6 +177,14 @@ public:
     static void signalHandler(int signum) {
         RCLCPP_INFO(rclcpp::get_logger("robot_controller"), "Interrupt signal received, shutting down.");
         QApplication::quit(); // QApplicationを終了
+        cmd="pause";
+        key_state_['W'] = false;
+        key_state_['A'] = false;
+        key_state_['S'] = false;
+        key_state_['D'] = false;
+        key_state_[16777236] = false;  // 右矢印キー
+        key_state_[16777234] = false;  // 左矢印キー
+        publishCommand();
     }
 
 protected:
