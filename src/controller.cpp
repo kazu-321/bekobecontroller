@@ -45,11 +45,14 @@ private:
     void onSettingButtonClicked() {
         QPushButton *button = qobject_cast<QPushButton *>(sender());
         if (!button) return;
+        printf("button\n");
 
         QHBoxLayout *rowLayout = qobject_cast<QHBoxLayout *>(button->parentWidget()->layout());
         if (!rowLayout) return;
+        printf("layout\n");
 
         QList<QLineEdit *> lineEdits = rowLayout->findChildren<QLineEdit *>();
+        printf("%d\n", lineEdits.size());
         for (QLineEdit *lineEdit : lineEdits) {
             QString text = lineEdit->text();
             printf("%s\n", text.toStdString().c_str());
