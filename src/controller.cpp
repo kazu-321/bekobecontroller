@@ -34,11 +34,21 @@ public:
         add_control("init 1", 1);
         add_control("init 2", 1);
         add_control("init 3", 1);
-        QPushButton *button = new QPushButton("load", this);
-        connect(button, &QPushButton::clicked, this,&ControlPanel::set_value);
-        layout->addWidget(button);
+        QPushButton *button_load = new QPushButton("load", this);
+        connect(button_load, &QPushButton::clicked, this,&ControlPanel::set_value);
+        layout->addWidget(button_load);
+        QPushButton *button_close = new QPushButton("close", this);
+        connect(button_close, &QPushButton::clicked, [this](){this->close();});
+        layout->addWidget(button_close);
+
         centralWidget->setLayout(layout);
         setCentralWidget(centralWidget);
+    }
+protected:
+    void keyPressEvent(QKeyEvent *event) override {
+        if(event->key() == Qt::Key_Escape){
+            this->close();
+        }
     }
 
 private:
@@ -128,14 +138,11 @@ public:
 
         // 画像を表示するラベルを作成
         image_label_ = new QLabel(this);
+        image_label_->setMinimumSize(1, 1);
         // image_label_->setScaledContents(true);
+        this->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
         mainLayout->addWidget(image_label_);
 
-        // コントロールパネルを別ウィンドウとして表示
-        control_panel_ = new ControlPanel();
-        control_panel_->setWindowTitle("Control Panel");
-        control_panel_->resize(400, 300);
-        control_panel_->show();
 
         // メインウィジェットを設定
         setCentralWidget(mainWidget);
@@ -168,6 +175,8 @@ public:
         old_mouse_x_ = -1;
         last_mouse_y_ = 0;
 
+        paused_=false;
+
         std::signal(SIGINT, &RobotController::signalHandler);
     }
     ~RobotController() {
@@ -177,14 +186,6 @@ public:
     static void signalHandler(int signum) {
         RCLCPP_INFO(rclcpp::get_logger("robot_controller"), "Interrupt signal received, shutting down.");
         QApplication::quit(); // QApplicationを終了
-        cmd="pause";
-        key_state_['W'] = false;
-        key_state_['A'] = false;
-        key_state_['S'] = false;
-        key_state_['D'] = false;
-        key_state_[16777236] = false;  // 右矢印キー
-        key_state_[16777234] = false;  // 左矢印キー
-        publishCommand();
     }
 
 protected:
@@ -201,7 +202,11 @@ protected:
         }else if(event->key() == 'R'){
             cmd="reset";
         }else if(event->key() == Qt::Key_Escape){
-            QApplication::quit();
+            // QApplication::quit();
+            control_panel_ = new ControlPanel();
+            control_panel_->setWindowTitle("Control Panel");
+            control_panel_->resize(400, 300);
+            control_panel_->show();
         }
     }
 
@@ -210,7 +215,7 @@ protected:
     }
 
     bool eventFilter(QObject *obj, QEvent *event) override {
-        if (event->type() == QEvent::MouseMove ) {
+        if (event->type() == QEvent::MouseMove && obj == image_label_) {
             QMouseEvent *mouse_event = static_cast<QMouseEvent *>(event);
             if(old_mouse_x_ == -1) {
                 old_mouse_x_ = mouse_event->x();
@@ -218,16 +223,16 @@ protected:
             
             last_mouse_x_ = mouse_event->x();
             last_mouse_y_ = mouse_event->y();
-            int window_width = this->width();
-            if (last_mouse_x_ <= 10) {
+            int window_width = width();
+            if (last_mouse_x_ <= 30) {
                 // 右端にラップアラウンド
-                QCursor::setPos(mapToGlobal(QPoint(window_width - 20, last_mouse_y_)));
-                last_mouse_x_ = window_width - 20;
+                QCursor::setPos(mapToGlobal(QPoint(window_width - 70, last_mouse_y_)));
+                last_mouse_x_ = window_width - 50;
                 old_mouse_x_ = last_mouse_x_;
-            } else if (last_mouse_x_ >= window_width - 10) {
+            } else if (last_mouse_x_ >= window_width - 50) {
                 // 左端にラップアラウンド
-                QCursor::setPos(mapToGlobal(QPoint(20, last_mouse_y_)));
-                last_mouse_x_ = 20;
+                QCursor::setPos(mapToGlobal(QPoint(70, last_mouse_y_)));
+                last_mouse_x_ = 70;
                 old_mouse_x_ = last_mouse_x_;
             }
             return true; // イベントを処理済み
@@ -324,6 +329,7 @@ private:
     std::map<int, bool> key_state_;
     double scale_factor_;
     int last_mouse_x_, last_mouse_y_, old_mouse_x_; 
+    bool paused_;
     rclcpp::Publisher<twistring::msg::Twistring>::SharedPtr command_publisher_;
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_subscriber_;
     rclcpp::Subscription<krb2024_msgs::msg::RobotStatus>::SharedPtr status_subscriber_;
