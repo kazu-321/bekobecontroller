@@ -43,7 +43,6 @@ public:
 
 private:
     void set_value(){
-        printf("set value\n");
         QList<QLineEdit*> lineEdits;
         lineEdits = controls["PID 0"];
         for (int i=0;i<3;i++) lineEdits[i]->setText(QString::number(robot_status.gain0[i]));
@@ -53,7 +52,6 @@ private:
         for (int i=0;i<3;i++) lineEdits[i]->setText(QString::number(robot_status.gain2[i]));
         lineEdits = controls["PID 3"];
         for (int i=0;i<3;i++) lineEdits[i]->setText(QString::number(robot_status.gain3[i]));
-        printf("init\n");
         for (int i=0;i<4;i++){ 
             lineEdits = controls["init "+QString::number(i)];
             lineEdits[0]->setText(QString::number(robot_status.rotation_init[i]));
@@ -130,7 +128,9 @@ public:
 
         // 画像を表示するラベルを作成
         image_label_ = new QLabel(this);
+        // image_label_->setScaledContents(true);
         mainLayout->addWidget(image_label_);
+
         // コントロールパネルを別ウィンドウとして表示
         control_panel_ = new ControlPanel();
         control_panel_->setWindowTitle("Control Panel");
@@ -227,6 +227,14 @@ protected:
         return QMainWindow::eventFilter(obj, event); // 他のイベントは基底クラスに渡す
     }
 
+    void resizeEvent(QResizeEvent* event) override{
+        if (!pixmap_.isNull()) {
+            image_label_->setPixmap(pixmap_.scaled(width()-20,height()-20, Qt::KeepAspectRatio));
+        }
+        QMainWindow::resizeEvent(event);
+    }
+
+
     void imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) {
         // ROSの画像メッセージをOpenCVの画像に変換
         try {
@@ -249,7 +257,6 @@ protected:
             int center_x = current_image_.cols / 2;
             int center_y = current_image_.rows / 2;
             int crosshair_size = 20; // クロスヘアのサイズ
-
             // 水平線を描画
             cv::line(current_image_, cv::Point(center_x - crosshair_size, center_y), 
                      cv::Point(center_x + crosshair_size, center_y), cv::Scalar(0, 0, 255), 2);
@@ -257,27 +264,13 @@ protected:
             // 垂直線を描画
             cv::line(current_image_, cv::Point(center_x, center_y - crosshair_size), 
                      cv::Point(center_x, center_y + crosshair_size), cv::Scalar(0, 0, 255), 2);
-            // int new_width = this->size().width();
-            // int new_height = this->size().height();
-
-            // アスペクト比を維持しながら新しい寸法を計算
-            // double aspect_ratio = static_cast<double>(original_width) / static_cast<double>(original_height);
-            // if (new_width / aspect_ratio <= new_height) {
-            //     new_height = static_cast<int>(new_width / aspect_ratio);
-            // } else {
-            //     new_width = static_cast<int>(new_height * aspect_ratio);
-            // }
-
-            // // 画像をリサイズ
-            // cv::resize(current_image_, current_image_, cv::Size(new_width, new_height));
-
             // QImageに変換
             QImage q_image(current_image_.data, current_image_.cols, current_image_.rows,
-                        current_image_.step[0], QImage::Format_BGR888);
-
+                        static_cast<int>(current_image_.step[0]), QImage::Format_BGR888);
             // 新しい画像でラベルを更新
-            image_label_->setPixmap(QPixmap::fromImage(q_image));
-            image_label_->setScaledContents(true);
+            pixmap_=QPixmap::fromImage(q_image);
+            image_label_->setPixmap(pixmap_.scaled(width()-20,height()-20, Qt::KeepAspectRatio));
+            // image_label_->setPixmap(pixmap_);
             image_label_->update();  // 再描画を要求
         } catch (const cv_bridge::Exception &e) {
             RCLCPP_ERROR(node_->get_logger(), "cv_bridge exception: %s", e.what());
@@ -318,6 +311,7 @@ private:
     rclcpp::Node::SharedPtr node_;
     QLabel *image_label_;
     QTimer *command_timer_;
+    QPixmap pixmap_;
     cv::Mat current_image_;
     std::map<int, bool> key_state_;
     double scale_factor_;
@@ -334,7 +328,8 @@ int main(int argc, char *argv[]) {
 
     QApplication app(argc, argv);
     RobotController window(node);
-    window.showMaximized();
+    // window.showMaximized();
+    window.show();
 
     // ノードをスピンするスレッドを追加
     std::thread rclcpp_thread([&node]() { rclcpp::spin(node); });
