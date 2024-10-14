@@ -43,7 +43,13 @@ private:
         layout->addLayout(rowLayout);
     }
     void onSettingButtonClicked() {
-        QList<QLineEdit *> lineEdits = findChildren<QLineEdit *>();
+        QPushButton *button = qobject_cast<QPushButton *>(sender());
+        if (!button) return;
+
+        QHBoxLayout *rowLayout = qobject_cast<QHBoxLayout *>(button->parentWidget()->layout());
+        if (!rowLayout) return;
+
+        QList<QLineEdit *> lineEdits = rowLayout->findChildren<QLineEdit *>();
         for (QLineEdit *lineEdit : lineEdits) {
             QString text = lineEdit->text();
             printf("%s\n", text.toStdString().c_str());
