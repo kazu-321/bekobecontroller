@@ -22,18 +22,19 @@ public:
     ControlPanel(QWidget *parent = nullptr) : QMainWindow(parent) {
         QWidget *centralWidget = new QWidget(this);
         layout = new QVBoxLayout(centralWidget);
-        add_control("PID 0",3);
-        add_control("PID 1",3);
-        add_control("PID 2",3);
+        add_control("PID 0", 3);
+        add_control("PID 1", 3);
+        add_control("PID 2", 3);
         centralWidget->setLayout(layout);
         setCentralWidget(centralWidget);
     }
+
 private:
-    void add_control(const QString &name,const int num=1) {
+    void add_control(const QString &name, const int num = 1) {
         QHBoxLayout *rowLayout = new QHBoxLayout();
         QLabel *label = new QLabel(name, this);
         rowLayout->addWidget(label);
-        for(int i=0;i<num;i++){
+        for (int i = 0; i < num; i++) {
             QLineEdit *lineEdit = new QLineEdit(this);
             rowLayout->addWidget(lineEdit);
         }
@@ -42,22 +43,34 @@ private:
         rowLayout->addWidget(button);
         layout->addLayout(rowLayout);
     }
+
     void onSettingButtonClicked() {
         QPushButton *button = qobject_cast<QPushButton *>(sender());
-        if (!button) return;
-        printf("button\n");
-
-        QHBoxLayout *rowLayout = qobject_cast<QHBoxLayout *>(button->parentWidget()->layout());
-        if (!rowLayout) return;
-        printf("layout\n");
-
-        QList<QLineEdit *> lineEdits = rowLayout->findChildren<QLineEdit *>();
-        printf("%d\n", lineEdits.size());
-        for (QLineEdit *lineEdit : lineEdits) {
-            QString text = lineEdit->text();
-            printf("%s\n", text.toStdString().c_str());
+        if (button) {
+            QWidget *parent = button->parentWidget();
+            if (parent) {
+                QVBoxLayout *parentLayout = qobject_cast<QVBoxLayout *>(parent->parentWidget()->layout());
+                if (parentLayout) {
+                    for (int i = 0; i < parentLayout->count(); i++) {
+                        QHBoxLayout *rowLayout = qobject_cast<QHBoxLayout *>(parentLayout->itemAt(i)->layout());
+                        if (rowLayout && rowLayout->indexOf(button) != -1) {
+                            for (int j = 0; j < rowLayout->count(); j++) {
+                                QWidget *widget = rowLayout->itemAt(j)->widget();
+                                if (widget) {
+                                    QLineEdit *lineEdit = qobject_cast<QLineEdit *>(widget);
+                                    if (lineEdit) {
+                                        RCLCPP_INFO(rclcpp::get_logger("robot_controller"), "Value: %s", lineEdit->text().toStdString().c_str());
+                                    }
+                                }
+                            }
+                            break;
+                        }
+                    }
+                } else printf("parentLayout is null\n");
+            }
         }
     }
+
     QVBoxLayout *layout;
 };
 
