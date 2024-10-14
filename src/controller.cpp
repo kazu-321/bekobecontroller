@@ -43,7 +43,7 @@ public:
 
 private:
     void set_value(){
-        QList<QLineEdit*> lineEdits
+        QList<QLineEdit*> lineEdits;
         lineEdits = controls["PID 0"];
         for (int i=0;i<3;i++) lineEdits[i]->setText(QString::number(robot_status.gain0[i]));
         lineEdits = controls["PID 1"];
