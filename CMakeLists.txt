@@ -5,6 +5,7 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(twistring REQUIRED)
+find_package(krb2024_msgs REQUIRED)
 find_package(Qt5 COMPONENTS Widgets REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(cv_bridge REQUIRED)
@@ -25,6 +26,7 @@ ament_target_dependencies(bekobecontroller
   rclcpp
   sensor_msgs
   twistring
+  krb2024_msgs
   cv_bridge
 )
 

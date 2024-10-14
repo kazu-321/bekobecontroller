@@ -13,11 +13,13 @@
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/image.hpp>
 #include <twistring/msg/twistring.hpp>
+#include <krb2024_msgs/msg/robot_status.hpp>
 #include <cv_bridge/cv_bridge.h>
 #include <opencv2/opencv.hpp>
 #include <map>
 
 std::string cmd;
+krb2024_msgs::msg::RobotStatus robot_status;
 
 class ControlPanel : public QMainWindow {
 public:
@@ -32,11 +34,29 @@ public:
         add_control("init 1", 1);
         add_control("init 2", 1);
         add_control("init 3", 1);
+        QPushButton *button = new QPushButton("load", this);
+        connect(button, &QPushButton::clicked, &ControlPanel::set_value);
+        layout->addWidget(button);
         centralWidget->setLayout(layout);
         setCentralWidget(centralWidget);
     }
 
 private:
+    void set_value(){
+        QList<QLineEdit*> lineEdits = controls["PID 0"];
+        for (int i=0;i<3;i++) lineEdits[i]->setText(QString::number(robot_status.gain0[i]));
+        QList<QLineEdit*> lineEdits = controls["PID 1"];
+        for (int i=0;i<3;i++) lineEdits[i]->setText(QString::number(robot_status.gain1[i]));
+        QList<QLineEdit*> lineEdits = controls["PID 2"];
+        for (int i=0;i<3;i++) lineEdits[i]->setText(QString::number(robot_status.gain2[i]));
+        QList<QLineEdit*> lineEdits = controls["PID 3"];
+        for (int i=0;i<3;i++) lineEdits[i]->setText(QString::number(robot_status.gain3[i]));
+        
+        for (int i=0;i<4;i++){ 
+            QList<QLineEdit*> lineEdits = controls["init "+QString::number(i)];
+            lineEdits[i]->setText(QString::number(robot_status.rotation_init[i]));
+        }
+    }
     void add_control(const QString &name, const int num = 1) {
         QHBoxLayout *rowLayout = new QHBoxLayout();
         QLabel *label = new QLabel(name, this);
@@ -129,6 +149,10 @@ public:
         // 画像のサブスクライバー
         image_subscriber_ = node_->create_subscription<sensor_msgs::msg::Image>(
             "/image", 10, std::bind(&RobotController::imageCallback, this, std::placeholders::_1));
+        status_subscriber_= node_->create_subscription<krb2024_msgs::msg::RobotStatus>(
+            "/robot_status", 10, [this](const krb2024_msgs::msg::RobotStatus::SharedPtr msg) {
+                robot_status = *msg;
+            });
 
         // コマンドのパブリッシャー
         command_publisher_ = node_->create_publisher<twistring::msg::Twistring>("cmd_vel", 10);
@@ -296,6 +320,7 @@ private:
     int last_mouse_x_, last_mouse_y_, old_mouse_x_; 
     rclcpp::Publisher<twistring::msg::Twistring>::SharedPtr command_publisher_;
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_subscriber_;
+    rclcpp::Subscription<krb2024_msgs::msg::RobotStatus>::SharedPtr status_subscriber_;
     ControlPanel *control_panel_;
 };
 
