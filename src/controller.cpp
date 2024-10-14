@@ -6,6 +6,11 @@
 #include <QImage>
 #include <QPixmap>
 #include <QCoreApplication>
+#include <QWidget>
+#include <QVBoxLayout>
+#include <QHBoxLayout>
+#include <QLineEdit>
+#include <QPushButton>
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/image.hpp>
 #include <twistring/msg/twistring.hpp>
@@ -13,54 +18,70 @@
 #include <opencv2/opencv.hpp>
 #include <map>
 
+class ControlPanel : public QWidget {
+public:
+    ControlPanel(QWidget *parent = nullptr) : QWidget(parent) {
+        QVBoxLayout *layout = new QVBoxLayout(this);
+        for (int i = 0; i < 10; ++i) {
+            QHBoxLayout *rowLayout = new QHBoxLayout();
+            QLabel *label = new QLabel(QString("ラベル %1").arg(i + 1), this);
+            QLineEdit *lineEdit = new QLineEdit(this);
+            QPushButton *button = new QPushButton(QString("ボタン %1").arg(i + 1), this);
+            rowLayout->addWidget(label);
+            rowLayout->addWidget(lineEdit);
+            rowLayout->addWidget(button);
+            layout->addLayout(rowLayout);
+        }
+        setLayout(layout);
+    }
+};
+
 class RobotController : public QMainWindow {
     Q_OBJECT
 
 public:
     RobotController(rclcpp::Node::SharedPtr node)
         : QMainWindow(), node_(node), scale_factor_(1.0) {
-        setWindowTitle("Robot Controller");
+        setWindowTitle("ロボットコントローラー");
         resize(640, 480);
 
-        // Create a label to display the image
-        image_label_ = new QLabel(this);
-        setCentralWidget(image_label_);
+        // メインウィジェットを作成
+        QWidget *mainWidget = new QWidget(this);
+        QHBoxLayout *mainLayout = new QHBoxLayout(mainWidget);
 
-        // Install the event filter
+        // 画像を表示するラベルを作成
+        image_label_ = new QLabel(this);
+        mainLayout->addWidget(image_label_);
+
+        // コントロールパネルを作成して追加
+        control_panel_ = new ControlPanel(this);
+        mainLayout->addWidget(control_panel_);
+
+        // メインウィジェットを設定
+        setCentralWidget(mainWidget);
+
+        // イベントフィルターをインストール
         QCoreApplication::instance()->installEventFilter(this);
 
-        // Timer for publishing commands
+        // コマンドを発行するためのタイマー
         command_timer_ = new QTimer(this);
         connect(command_timer_, &QTimer::timeout, this, &RobotController::publishCommand);
         command_timer_->start(50);  // 20Hz
 
-        // Subscriber for image
+        // 画像のサブスクライバー
         image_subscriber_ = node_->create_subscription<sensor_msgs::msg::Image>(
             "/image", 10, std::bind(&RobotController::imageCallback, this, std::placeholders::_1));
 
-        // Publisher for commands
+        // コマンドのパブリッシャー
         command_publisher_ = node_->create_publisher<twistring::msg::Twistring>("cmd_vel", 10);
-
-        // Initialize key states
-        key_state_['W'] = false;
-        key_state_['A'] = false;
-        key_state_['S'] = false;
-        key_state_['D'] = false;
-        key_state_[16777236] = false;  // Right arrow key
-        key_state_[16777234] = false;  // Left arrow key
-
-        old_mouse_x_ = -1;
-        last_mouse_y_ = 0;
-
-        std::signal(SIGINT, &RobotController::signalHandler);
     }
     ~RobotController() {
-        // Cleanup if needed
+        // 必要に応じてクリーンアップ
     }
 
     static void signalHandler(int signum) {
         RCLCPP_INFO(rclcpp::get_logger("robot_controller"), "Interrupt signal received, shutting down.");
-        QApplication::quit(); // Quit the QApplication
+        QApplication::quit(); // QApplicationを終了
     }
 
 protected:
@@ -92,57 +113,55 @@ protected:
             last_mouse_y_ = mouse_event->y();
             int window_width = this->width();
             if (last_mouse_x_ <= 10) {
-                // RCLCPP_INFO(node_->get_logger(), "Wrap around to the right edge");
-                // Wrap around to the right edge
+                // 右端にラップアラウンド
                 QCursor::setPos(mapToGlobal(QPoint(window_width - 20, last_mouse_y_)));
                 last_mouse_x_ = window_width - 20;
                 old_mouse_x_ = last_mouse_x_;
             } else if (last_mouse_x_ >= window_width - 10) {
-                // RCLCPP_INFO(node_->get_logger(), "Wrap around to the left edge");
-                // Wrap around to the left edge
+                // 左端にラップアラウンド
                 QCursor::setPos(mapToGlobal(QPoint(20, last_mouse_y_)));
                 last_mouse_x_ = 20;
                 old_mouse_x_ = last_mouse_x_;
             }
-            return true; // Event handled
+            return true; // イベントを処理済み
         }
-        return QMainWindow::eventFilter(obj, event); // Pass other events to the base class
+        return QMainWindow::eventFilter(obj, event); // 他のイベントは基底クラスに渡す
     }
 
     void imageCallback(const sensor_msgs::msg::Image::SharedPtr msg) {
-        // Convert ROS Image message to OpenCV image
+        // ROSの画像メッセージをOpenCVの画像に変換
         try {
             cv_bridge::CvImagePtr cv_ptr = cv_bridge::toCvCopy(*msg, sensor_msgs::image_encodings::BGR8);
             current_image_ = cv_ptr->image;
 
-            // Check if the image is empty
+            // 画像が空かどうかをチェック
             if (current_image_.empty()) {
                 RCLCPP_WARN(node_->get_logger(), "Received empty image!");
                 return;
             }
 
-            // Store original image dimensions
+            // 元の画像の寸法を保存
             int original_width = current_image_.cols;
             int original_height = current_image_.rows;
 
-            // Get the current window size
+            // 現在のウィンドウサイズを取得
 
-            // Draw a crosshair at the center of the image
+            // 画像の中心にクロスヘアを描画
             int center_x = current_image_.cols / 2;
             int center_y = current_image_.rows / 2;
-            int crosshair_size = 20; // Size of the crosshair
+            int crosshair_size = 20; // クロスヘアのサイズ
 
-            // Draw horizontal line
+            // 水平線を描画
             cv::line(current_image_, cv::Point(center_x - crosshair_size, center_y), 
                      cv::Point(center_x + crosshair_size, center_y), cv::Scalar(0, 0, 255), 2);
 
-            // Draw vertical line
+            // 垂直線を描画
             cv::line(current_image_, cv::Point(center_x, center_y - crosshair_size), 
                      cv::Point(center_x, center_y + crosshair_size), cv::Scalar(0, 0, 255), 2);
             int new_width = this->size().width();
             int new_height = this->size().height();
 
-            // Calculate the new dimensions while maintaining the aspect ratio
+            // アスペクト比を維持しながら新しい寸法を計算
             double aspect_ratio = static_cast<double>(original_width) / static_cast<double>(original_height);
             if (new_width / aspect_ratio <= new_height) {
                 new_height = static_cast<int>(new_width / aspect_ratio);
@@ -150,16 +169,16 @@ protected:
                 new_width = static_cast<int>(new_height * aspect_ratio);
             }
 
-            // Resize the image
+            // 画像をリサイズ
             cv::resize(current_image_, current_image_, cv::Size(new_width, new_height));
 
-            // Convert to QImage
+            // QImageに変換
             QImage q_image(current_image_.data, current_image_.cols, current_image_.rows,
                         current_image_.step[0], QImage::Format_BGR888);
 
-            // Update the label with the new image
+            // 新しい画像でラベルを更新
             image_label_->setPixmap(QPixmap::fromImage(q_image));
-            image_label_->update();  // Request update instead of repaint
+            image_label_->update();  // 再描画を要求
         } catch (const cv_bridge::Exception &e) {
             RCLCPP_ERROR(node_->get_logger(), "cv_bridge exception: %s", e.what());
         } catch (const std::exception &e) {
@@ -191,7 +210,7 @@ protected:
         cmd = "";
         old_mouse_x_ = last_mouse_x_;
 
-        // Publish the command
+        // コマンドを発行
         command_publisher_->publish(*twistring_msg);
     }
 
@@ -206,6 +225,7 @@ private:
     int last_mouse_x_, last_mouse_y_, old_mouse_x_; 
     rclcpp::Publisher<twistring::msg::Twistring>::SharedPtr command_publisher_;
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_subscriber_;
+    ControlPanel *control_panel_;
 };
 
 int main(int argc, char *argv[]) {
