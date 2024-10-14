@@ -35,7 +35,7 @@ public:
         add_control("init 2", 1);
         add_control("init 3", 1);
         QPushButton *button = new QPushButton("load", this);
-        connect(button, &QPushButton::clicked, &ControlPanel::set_value);
+        connect(button, &QPushButton::clicked, this,&ControlPanel::set_value);
         layout->addWidget(button);
         centralWidget->setLayout(layout);
         setCentralWidget(centralWidget);
@@ -150,9 +150,7 @@ public:
         image_subscriber_ = node_->create_subscription<sensor_msgs::msg::Image>(
             "/image", 10, std::bind(&RobotController::imageCallback, this, std::placeholders::_1));
         status_subscriber_= node_->create_subscription<krb2024_msgs::msg::RobotStatus>(
-            "/robot_status", 10, [this](const krb2024_msgs::msg::RobotStatus::SharedPtr msg) {
-                robot_status = *msg;
-            });
+            "/robot_status", 10, std::bind(&RobotController::set_status, this, std::placeholders::_1));
 
         // コマンドのパブリッシャー
         command_publisher_ = node_->create_publisher<twistring::msg::Twistring>("cmd_vel", 10);
@@ -180,6 +178,10 @@ public:
     }
 
 protected:
+    void set_status(const krb2024_msgs::msg::RobotStatus::SharedPtr msg){
+        robot_status = *msg;
+    }
+
     void keyPressEvent(QKeyEvent *event) override {
         key_state_[event->key()] = true;
         if(event->key() == 'C'){
