@@ -41,7 +41,7 @@ public:
         QPushButton *button_close = new QPushButton("close", this);
         connect(button_close, &QPushButton::clicked, [this](){this->close();paused_=false;});
         layout->addWidget(button_close);
-        set_value();
+        // set_value();
         centralWidget->setLayout(layout);
         setCentralWidget(centralWidget);
     }
@@ -54,20 +54,22 @@ protected:
     }
 
 private:
+    void set_gain(krb2024_msgs::msg::Gain &gain,QList<QLineEdit*> lineEdits){
+        lineEdits[0]->setText(QString::number(gain.p));
+        lineEdits[1]->setText(QString::number(gain.i));
+        lineEdits[2]->setText(QString::number(gain.d));
+    }
+
+
     void set_value(){
-        QList<QLineEdit*> lineEdits;
-        lineEdits = controls["PID 0"];
-        for (int i=0;i<3;i++) lineEdits[i]->setText(QString::number(robot_status.gain0[i]));
-        lineEdits = controls["PID 1"];
-        for (int i=0;i<3;i++) lineEdits[i]->setText(QString::number(robot_status.gain1[i]));
-        lineEdits = controls["PID 2"];
-        for (int i=0;i<3;i++) lineEdits[i]->setText(QString::number(robot_status.gain2[i]));
-        lineEdits = controls["PID 3"];
-        for (int i=0;i<3;i++) lineEdits[i]->setText(QString::number(robot_status.gain3[i]));
-        for (int i=0;i<4;i++){ 
-            lineEdits = controls["init "+QString::number(i)];
-            lineEdits[0]->setText(QString::number(robot_status.rotation_init[i]));
-        }
+        set_gain(robot_status.gain0,controls["PID 0"]);
+        set_gain(robot_status.gain1,controls["PID 1"]);
+        set_gain(robot_status.gain2,controls["PID 2"]);
+        set_gain(robot_status.gain3,controls["PID 3"]);
+        controls["init 0"][0]->setText(QString::number(robot_status.rotation_init.data0));
+        controls["init 1"][0]->setText(QString::number(robot_status.rotation_init.data1));
+        controls["init 2"][0]->setText(QString::number(robot_status.rotation_init.data2));
+        controls["init 3"][0]->setText(QString::number(robot_status.rotation_init.data3));
     }
     void add_control(const QString &name, const int num = 1) {
         QHBoxLayout *rowLayout = new QHBoxLayout();
