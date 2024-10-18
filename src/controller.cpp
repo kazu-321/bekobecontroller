@@ -41,7 +41,7 @@ public:
         QPushButton *button_close = new QPushButton("close", this);
         connect(button_close, &QPushButton::clicked, [this](){this->close();paused_=false;});
         layout->addWidget(button_close);
-        // set_value();
+        set_value();
         centralWidget->setLayout(layout);
         setCentralWidget(centralWidget);
     }
