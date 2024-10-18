@@ -162,8 +162,8 @@ public:
         // 画像のサブスクライバー
         image_subscriber_ = node_->create_subscription<sensor_msgs::msg::Image>(
             "/image", 10, std::bind(&RobotController::imageCallback, this, std::placeholders::_1));
-        status_subscriber_= node_->create_subscription<krb2024_msgs::msg::RobotStatus>(
-            "/robot_status", 10, std::bind(&RobotController::set_status, this, std::placeholders::_1));
+        // status_subscriber_= node_->create_subscription<krb2024_msgs::msg::RobotStatus>(
+        //     "/robot_status", 10, std::bind(&RobotController::set_status, this, std::placeholders::_1));
 
         // コマンドのパブリッシャー
         command_publisher_ = node_->create_publisher<twistring::msg::Twistring>("cmd_vel", 10);
@@ -193,9 +193,9 @@ public:
     }
 
 protected:
-    void set_status(const krb2024_msgs::msg::RobotStatus::SharedPtr msg){
-        robot_status = *msg;
-    }
+    // void set_status(const krb2024_msgs::msg::RobotStatus::SharedPtr msg){
+    //     robot_status = *msg;
+    // }
 
     void keyPressEvent(QKeyEvent *event) override {
         key_state_[event->key()] = true;
@@ -207,11 +207,13 @@ protected:
             cmd="reset";
         }else if(event->key() == Qt::Key_Escape){
             // QApplication::quit();
-            control_panel_ = new ControlPanel();
-            control_panel_->setWindowTitle("Control Panel");
-            control_panel_->resize(400, 300);
-            control_panel_->show();
-            paused_ = true;
+            if(!paused_){
+                control_panel_ = new ControlPanel();
+                control_panel_->setWindowTitle("Control Panel");
+                control_panel_->resize(400, 300);
+                control_panel_->show();
+                paused_ = true;
+            }
         }
     }
 
