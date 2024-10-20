@@ -35,6 +35,7 @@ public:
         add_control("init 1", 1);
         add_control("init 2", 1);
         add_control("init 3", 1);
+        add_control("speed",1);
         QPushButton *button_load = new QPushButton("load", this);
         connect(button_load, &QPushButton::clicked, this,&ControlPanel::set_value);
         layout->addWidget(button_load);
