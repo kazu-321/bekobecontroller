@@ -46,6 +46,18 @@ public:
         centralWidget->setLayout(layout);
         setCentralWidget(centralWidget);
     }
+
+    void set_value(){
+        set_gain(robot_status.gain0,controls["PID 0"]);
+        set_gain(robot_status.gain1,controls["PID 1"]);
+        set_gain(robot_status.gain2,controls["PID 2"]);
+        set_gain(robot_status.gain3,controls["PID 3"]);
+        controls["init 0"][0]->setText(QString::number(robot_status.rotation_init.data0));
+        controls["init 1"][0]->setText(QString::number(robot_status.rotation_init.data1));
+        controls["init 2"][0]->setText(QString::number(robot_status.rotation_init.data2));
+        controls["init 3"][0]->setText(QString::number(robot_status.rotation_init.data3));
+    }
+    
 protected:
     void keyPressEvent(QKeyEvent *event) override {
         if(event->key() == Qt::Key_Escape){
@@ -62,16 +74,6 @@ private:
     }
 
 
-    void set_value(){
-        set_gain(robot_status.gain0,controls["PID 0"]);
-        set_gain(robot_status.gain1,controls["PID 1"]);
-        set_gain(robot_status.gain2,controls["PID 2"]);
-        set_gain(robot_status.gain3,controls["PID 3"]);
-        controls["init 0"][0]->setText(QString::number(robot_status.rotation_init.data0));
-        controls["init 1"][0]->setText(QString::number(robot_status.rotation_init.data1));
-        controls["init 2"][0]->setText(QString::number(robot_status.rotation_init.data2));
-        controls["init 3"][0]->setText(QString::number(robot_status.rotation_init.data3));
-    }
     void add_control(const QString &name, const int num = 1) {
         QHBoxLayout *rowLayout = new QHBoxLayout();
         QLabel *label = new QLabel(name, this);
@@ -163,8 +165,8 @@ public:
         // 画像のサブスクライバー
         image_subscriber_ = node_->create_subscription<sensor_msgs::msg::Image>(
             "/image", 10, std::bind(&RobotController::imageCallback, this, std::placeholders::_1));
-        // status_subscriber_= node_->create_subscription<krb2024_msgs::msg::RobotStatus>(
-        //     "/robot_status", 10, std::bind(&RobotController::set_status, this, std::placeholders::_1));
+        status_subscriber_= node_->create_subscription<krb2024_msgs::msg::RobotStatus>(
+            "/robot_status", rclcpp::QoS(10).best_effort(), std::bind(&RobotController::set_status, this, std::placeholders::_1));
 
         // コマンドのパブリッシャー
         command_publisher_ = node_->create_publisher<twistring::msg::Twistring>("cmd_vel", 10);
@@ -194,9 +196,12 @@ public:
     }
 
 protected:
-    // void set_status(const krb2024_msgs::msg::RobotStatus::SharedPtr msg){
-    //     robot_status = *msg;
-    // }
+    void set_status(const krb2024_msgs::msg::RobotStatus::SharedPtr msg){
+        robot_status = *msg;
+        if(paused_){
+            control_panel_->set_value();
+        }
+    }
 
     void keyPressEvent(QKeyEvent *event) override {
         key_state_[event->key()] = true;
@@ -206,6 +211,8 @@ protected:
             cmd="pause";
         }else if(event->key() == 'R'){
             cmd="reset";
+        }else if(event->key() == 'E'){
+            cmd="send";
         }else if(event->key() == Qt::Key_Escape){
             // QApplication::quit();
             if(!paused_){
@@ -213,6 +220,7 @@ protected:
                 control_panel_->setWindowTitle("Control Panel");
                 control_panel_->resize(400, 300);
                 control_panel_->show();
+                cmd="send";
                 paused_ = true;
             }
         }
