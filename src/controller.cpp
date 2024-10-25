@@ -327,7 +327,7 @@ protected:
         if(key_state_[16777234]) twistring_msg->twist.angular.z += 1.0;
 
         twistring_msg->twist.angular.x = (old_mouse_x_ - last_mouse_x_)/100.0;
-        twistring_msg->twist.angular.y = last_mouse_y_/height();
+        twistring_msg->twist.angular.y = (double)last_mouse_y_/(double)height();
         twistring_msg->cmd = cmd;
         cmd = "";
         old_mouse_x_ = last_mouse_x_;
